@@ -1,0 +1,144 @@
+# v2 syntax
+version: '2'
+
+#--------------------------------------------------------------------------
+# Services
+#--------------------------------------------------------------------------
+
+services:
+
+    applications:
+        container_name: SANDBOX-applications
+        image: tianon/true
+        volumes:
+            - .:/var/www
+
+    workspace:
+        container_name: SANDBOX-workspace
+        build:
+            context: ./resources/docker/workspace
+            args:
+                - INSTALL_XDEBUG=false
+                - COMPOSER_GLOBAL_INSTALL=false
+                - INSTALL_WORKSPACE_SSH=false
+                - INSTALL_NODE=true
+                - NODE_VERSION=stable
+        volumes_from:
+            - applications
+        extra_hosts:
+            # IMPORTANT: Replace with your Docker Host IP (will be appended to /etc/hosts)
+            - "dockerhost:10.0.75.1"
+        ports:
+           - "2222:22"
+        tty: true
+
+    php-fpm:
+        container_name: SANDBOX-php-fpm
+        build:
+            context: ./resources/docker/php-fpm
+            args:
+                - INSTALL_XDEBUG=false
+                - INSTALL_SOAP=false
+                - INSTALL_ZIP_ARCHIVE=false
+                - INSTALL_BCMATH=false
+                - INSTALL_PHPREDIS=false
+                - INSTALL_MEMCACHED=false
+                - INSTALL_OPCACHE=false
+                - INSTALL_EXIF=false
+            dockerfile: Dockerfile-70
+        volumes_from:
+            - applications
+        expose:
+            - "9000"
+        links:
+            - workspace
+        extra_hosts:
+            # IMPORTANT: Replace with your Docker Host IP (will be appended to /etc/hosts)
+            - "dockerhost:10.0.75.1"
+        environment:
+            # IMPORTANT: Set the Remote Interpreter entry matching name to `laravel`
+            - PHP_IDE_CONFIG=serverName=laravel
+
+    nginx:
+        container_name: SANDBOX-nginx
+        build:
+            context: ./resources/docker/nginx
+            args:
+                - PHP_UPSTREAM=php-fpm
+        volumes_from:
+            - applications
+        volumes:
+            - ./storage/logs/nginx/:/var/log/nginx
+            - ./resources/docker/nginx/sites/:/etc/nginx/sites-available
+        ports:
+            - "80:80"
+            - "443:443"
+        links:
+            - php-fpm
+
+    mysql:
+        container_name: SANDBOX-mysql
+        build:
+            context: ./resources/docker/mysql
+            args:
+                - MYSQL_DATABASE=SANDBOX
+                - MYSQL_USER=SANDBOX
+                - MYSQL_PASSWORD=SANDBOX
+                - MYSQL_ROOT_PASSWORD=root
+        volumes:
+            - mysql-data:/var/lib/mysql
+        ports:
+            - "3306:3306"
+
+    phpmyadmin:
+        container_name: SANDBOX-phpmyadmin
+        build: ./resources/docker/phpmyadmin
+        environment:
+            PMA_ARBITRARY: 1
+            MYSQL_USER: SANDBOX
+            MYSQL_PASSWORD: SANDBOX
+            MYSQL_ROOT_PASSWORD: root
+        ports:
+            - "8080:80"
+        links:
+            - "mysql:db"
+
+    # redis:
+    #     container_name: SANDBOX-redis
+    #     build: ./resources/docker/redis
+    #     volumes:
+    #         - redis-data:/data
+    #     ports:
+    #         - "6379:6379"
+
+    # memcached:
+    #     container_name: SANDBOX-memcached
+    #     build: ./resources/docker/memcached
+    #     volumes:
+    #         - memcached-data:/var/lib/memcached
+    #     ports:
+    #         - "11211:11211"
+    #     links:
+    #         - php-fpm
+
+#--------------------------------------------------------------------------
+# Volumes
+#--------------------------------------------------------------------------
+
+volumes:
+
+    mysql-data:
+        driver: "local"
+
+    phpmyadmin-data:
+        driver: "local"
+
+    # memcached-data:
+    #     driver: "local"
+
+    # redis-data:
+    #     driver: "local"
+
+    ## nothing is connected to this (- ./data/sessions:/sessions)
+    sessions:
+        driver: "local"
