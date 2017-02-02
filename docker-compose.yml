@@ -25,6 +25,9 @@ services:
                 - NODE_VERSION=stable
         volumes_from:
             - applications
+        volumes:
+            - ~/.composer:/root/.composer
+            # - ~/.npm:/root/.npm
         extra_hosts:
             # IMPORTANT: Replace with your Docker Host IP (will be appended to /etc/hosts)
             - "dockerhost:10.0.75.1"
