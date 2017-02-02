@@ -27,6 +27,7 @@ services:
             - applications
         volumes:
             - ~/.composer:/root/.composer
+            - ~/.composer:/home/goutnix/.composer
             # - ~/.npm:/root/.npm
         extra_hosts:
             # IMPORTANT: Replace with your Docker Host IP (will be appended to /etc/hosts)
